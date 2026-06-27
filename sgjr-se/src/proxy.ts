@@ -5,9 +5,21 @@ import { PERFIS_ESCRITORIO, PERFIS_IES } from '@/types'
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
+  const path = request.nextUrl.pathname
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  // Sem credenciais configuradas: redirecionar para login sem validar sessão
+  if (!supabaseUrl || !supabaseKey) {
+    if (!path.startsWith('/login')) {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+    return supabaseResponse
+  }
+
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseKey,
     {
       cookies: {
         getAll() {
@@ -25,7 +37,6 @@ export async function proxy(request: NextRequest) {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
-  const path = request.nextUrl.pathname
 
   // Rota pública: login
   if (path.startsWith('/login') || path.startsWith('/api/')) {
